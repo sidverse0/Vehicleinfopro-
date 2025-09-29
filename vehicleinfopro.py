@@ -6,6 +6,7 @@ from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update, InputFi
 from telegram.ext import Updater, CommandHandler, CallbackQueryHandler, MessageHandler, Filters, CallbackContext
 import requests
 import json
+import html
 
 # Bot configuration
 BOT_TOKEN = os.environ.get('BOT_TOKEN', '8223529849:AAGZmFjRzTDPWi7fcFthjThIuldj1bNv_qs')
@@ -25,6 +26,13 @@ logger = logging.getLogger(__name__)
 # API endpoints
 API1_URL = "https://revangevichelinfo.vercel.app/api/rc?number="
 API2_URL = "https://caller.hackershub.shop/info.php?type=address&registration="
+
+def escape_markdown(text):
+    """Escape special Markdown characters"""
+    if not text:
+        return ""
+    escape_chars = '_*[]()~`>#+-=|{}.!'
+    return ''.join(['\\' + char if char in escape_chars else char for char in str(text)])
 
 def start(update: Update, context: CallbackContext) -> None:
     """Send welcome message with inline keyboard"""
@@ -118,80 +126,80 @@ def get_vehicle_info(vehicle_number):
     return results
 
 def format_api1_result(api1_data):
-    """Format API 1 result with emojis"""
-    message = "📄 *RESULT 1 (RC Information):*\n\n"
+    """Format API 1 result with emojis - FIXED MARKDOWN"""
+    message = "📄 *RESULT 1 \\(RC Information\\):*\n\n"
     
     if 'error' in api1_data:
-        message += f"❌ Error: {api1_data['error']}\n"
+        message += f"❌ Error: {escape_markdown(api1_data['error'])}\n"
         return message
     
     try:
         data = api1_data
-        message += f"👤 *Owner:* {data.get('owner_name', 'N/A')}\n"
-        message += f"👨‍👦 *Father:* {data.get('father_name', 'N/A')}\n"
-        message += f"🔢 *Owner Serial:* {data.get('owner_serial_no', 'N/A')}\n"
-        message += f"🏭 *Manufacturer:* {data.get('model_name', 'N/A')}\n"
-        message += f"🚗 *Model:* {data.get('maker_model', 'N/A')}\n"
-        message += f"📋 *Vehicle Class:* {data.get('vehicle_class', 'N/A')}\n"
-        message += f"⛽ *Fuel Type:* {data.get('fuel_type', 'N/A')}\n"
-        message += f"🌱 *Fuel Norms:* {data.get('fuel_norms', 'N/A')}\n"
-        message += f"📅 *Registration Date:* {data.get('registration_date', 'N/A')}\n"
-        message += f"🏢 *Insurance Company:* {data.get('insurance_company', 'N/A')}\n"
-        message += f"🛡️ *Insurance Upto:* {data.get('insurance_upto', 'N/A')}\n"
-        message += f"✅ *Fitness Upto:* {data.get('fitness_upto', 'N/A')}\n"
-        message += f"💰 *Tax Upto:* {data.get('tax_upto', 'N/A')}\n"
-        message += f"📊 *PUC Upto:* {data.get('puc_upto', 'N/A')}\n"
-        message += f"🏦 *Financier:* {data.get('financier_name', 'N/A')}\n"
-        message += f"🏢 *RTO:* {data.get('rto', 'N/A')}\n"
-        message += f"📍 *Address:* {data.get('address', 'N/A')}\n"
-        message += f"🏙️ *City:* {data.get('city', 'N/A')}\n"
+        message += f"👤 *Owner:* {escape_markdown(data.get('owner_name', 'N/A'))}\n"
+        message += f"👨‍👦 *Father:* {escape_markdown(data.get('father_name', 'N/A'))}\n"
+        message += f"🔢 *Owner Serial:* {escape_markdown(data.get('owner_serial_no', 'N/A'))}\n"
+        message += f"🏭 *Manufacturer:* {escape_markdown(data.get('model_name', 'N/A'))}\n"
+        message += f"🚗 *Model:* {escape_markdown(data.get('maker_model', 'N/A'))}\n"
+        message += f"📋 *Vehicle Class:* {escape_markdown(data.get('vehicle_class', 'N/A'))}\n"
+        message += f"⛽ *Fuel Type:* {escape_markdown(data.get('fuel_type', 'N/A'))}\n"
+        message += f"🌱 *Fuel Norms:* {escape_markdown(data.get('fuel_norms', 'N/A'))}\n"
+        message += f"📅 *Registration Date:* {escape_markdown(data.get('registration_date', 'N/A'))}\n"
+        message += f"🏢 *Insurance Company:* {escape_markdown(data.get('insurance_company', 'N/A'))}\n"
+        message += f"🛡️ *Insurance Upto:* {escape_markdown(data.get('insurance_upto', 'N/A'))}\n"
+        message += f"✅ *Fitness Upto:* {escape_markdown(data.get('fitness_upto', 'N/A'))}\n"
+        message += f"💰 *Tax Upto:* {escape_markdown(data.get('tax_upto', 'N/A'))}\n"
+        message += f"📊 *PUC Upto:* {escape_markdown(data.get('puc_upto', 'N/A'))}\n"
+        message += f"🏦 *Financier:* {escape_markdown(data.get('financier_name', 'N/A'))}\n"
+        message += f"🏢 *RTO:* {escape_markdown(data.get('rto', 'N/A'))}\n"
+        message += f"📍 *Address:* {escape_markdown(data.get('address', 'N/A'))}\n"
+        message += f"🏙️ *City:* {escape_markdown(data.get('city', 'N/A'))}\n"
         
     except Exception as e:
-        message += f"❌ Data parsing error: {str(e)}\n"
+        message += f"❌ Data parsing error: {escape_markdown(str(e))}\n"
     
     return message
 
 def format_api2_result(api2_data):
-    """Format API 2 result with emojis"""
-    message = "🏠 *RESULT 2 (Detailed Information):*\n\n"
+    """Format API 2 result with emojis - FIXED MARKDOWN"""
+    message = "🏠 *RESULT 2 \\(Detailed Information\\):*\n\n"
     
     if 'error' in api2_data:
-        message += f"❌ Error: {api2_data['error']}\n"
+        message += f"❌ Error: {escape_markdown(api2_data['error'])}\n"
         return message
     
     try:
         data = api2_data
-        message += f"🔢 *Asset Number:* {data.get('asset_number', 'N/A')}\n"
-        message += f"🚗 *Asset Type:* {data.get('asset_type', 'N/A')}\n"
-        message += f"📅 *Registration Year:* {data.get('registration_year', 'N/A')}\n"
-        message += f"🗓️ *Registration Month:* {data.get('registration_month', 'N/A')}\n"
-        message += f"🏭 *Make Model:* {data.get('make_model', 'N/A')}\n"
-        message += f"📋 *Vehicle Type:* {data.get('vehicle_type', 'N/A')}\n"
-        message += f"🔧 *Make Name:* {data.get('make_name', 'N/A')}\n"
-        message += f"⛽ *Fuel Type:* {data.get('fuel_type', 'N/A')}\n"
-        message += f"🔩 *Engine Number:* {data.get('engine_number', 'N/A')}\n"
-        message += f"👤 *Owner Name:* {data.get('owner_name', 'N/A')}\n"
-        message += f"🆔 *Chassis Number:* {data.get('chassis_number', 'N/A')}\n"
-        message += f"🏢 *Previous Insurer:* {data.get('previous_insurer', 'N/A')}\n"
-        message += f"🛡️ *Previous Policy Expiry:* {data.get('previous_policy_expiry_date', 'N/A')}\n"
-        message += f"🏠 *Permanent Address:* {data.get('permanent_address', 'N/A')}\n"
-        message += f"📍 *Present Address:* {data.get('present_address', 'N/A')}\n"
-        message += f"📅 *Registration Date:* {data.get('registration_date', 'N/A')}\n"
-        message += f"🏢 *Registration Address:* {data.get('registration_address', 'N/A')}\n"
-        message += f"🚗 *Model Name:* {data.get('model_name', 'N/A')}\n"
-        message += f"🏭 *Make Name 2:* {data.get('make_name2', 'N/A')}\n"
-        message += f"📋 *Model Name 2:* {data.get('model_name2', 'N/A')}\n"
-        message += f"🔄 *Previous Policy Expired:* {data.get('previous_policy_expired', 'N/A')}\n"
+        message += f"🔢 *Asset Number:* {escape_markdown(data.get('asset_number', 'N/A'))}\n"
+        message += f"🚗 *Asset Type:* {escape_markdown(data.get('asset_type', 'N/A'))}\n"
+        message += f"📅 *Registration Year:* {escape_markdown(data.get('registration_year', 'N/A'))}\n"
+        message += f"🗓️ *Registration Month:* {escape_markdown(data.get('registration_month', 'N/A'))}\n"
+        message += f"🏭 *Make Model:* {escape_markdown(data.get('make_model', 'N/A'))}\n"
+        message += f"📋 *Vehicle Type:* {escape_markdown(data.get('vehicle_type', 'N/A'))}\n"
+        message += f"🔧 *Make Name:* {escape_markdown(data.get('make_name', 'N/A'))}\n"
+        message += f"⛽ *Fuel Type:* {escape_markdown(data.get('fuel_type', 'N/A'))}\n"
+        message += f"🔩 *Engine Number:* {escape_markdown(data.get('engine_number', 'N/A'))}\n"
+        message += f"👤 *Owner Name:* {escape_markdown(data.get('owner_name', 'N/A'))}\n"
+        message += f"🆔 *Chassis Number:* {escape_markdown(data.get('chassis_number', 'N/A'))}\n"
+        message += f"🏢 *Previous Insurer:* {escape_markdown(data.get('previous_insurer', 'N/A'))}\n"
+        message += f"🛡️ *Previous Policy Expiry:* {escape_markdown(data.get('previous_policy_expiry_date', 'N/A'))}\n"
+        message += f"🏠 *Permanent Address:* {escape_markdown(data.get('permanent_address', 'N/A'))}\n"
+        message += f"📍 *Present Address:* {escape_markdown(data.get('present_address', 'N/A'))}\n"
+        message += f"📅 *Registration Date:* {escape_markdown(data.get('registration_date', 'N/A'))}\n"
+        message += f"🏢 *Registration Address:* {escape_markdown(data.get('registration_address', 'N/A'))}\n"
+        message += f"🚗 *Model Name:* {escape_markdown(data.get('model_name', 'N/A'))}\n"
+        message += f"🏭 *Make Name 2:* {escape_markdown(data.get('make_name2', 'N/A'))}\n"
+        message += f"📋 *Model Name 2:* {escape_markdown(data.get('model_name2', 'N/A'))}\n"
+        message += f"🔄 *Previous Policy Expired:* {escape_markdown(data.get('previous_policy_expired', 'N/A'))}\n"
         
     except Exception as e:
-        message += f"❌ Data parsing error: {str(e)}\n"
+        message += f"❌ Data parsing error: {escape_markdown(str(e))}\n"
     
     return message
 
 def format_results(vehicle_number, results):
-    """Format the API results into a readable message"""
+    """Format the API results into a readable message - FIXED MARKDOWN"""
     
-    message = f"🚗 *Vehicle Information for {vehicle_number}*\n\n"
+    message = f"🚗 *Vehicle Information for {escape_markdown(vehicle_number)}*\n\n"
     message += "═" * 40 + "\n\n"
     
     # Result 1 from API 1
@@ -205,9 +213,29 @@ def format_results(vehicle_number, results):
     message += format_api2_result(api2_data)
     
     message += "\n" + "═" * 40 + "\n"
-    message += "🔄 *Search again? Use the button below!*"
+    message += "🔄 *Search again\\? Use the button below\\!*"
     
     return message
+
+def split_long_message(message, max_length=4096):
+    """Split long messages into multiple parts"""
+    if len(message) <= max_length:
+        return [message]
+    
+    parts = []
+    while len(message) > max_length:
+        # Find the last newline before max_length
+        split_index = message.rfind('\n', 0, max_length)
+        if split_index == -1:
+            split_index = max_length
+        
+        parts.append(message[:split_index])
+        message = message[split_index:].lstrip()
+    
+    if message:
+        parts.append(message)
+    
+    return parts
 
 def handle_vehicle_input(update: Update, context: CallbackContext) -> None:
     """Handle vehicle number input from user"""
@@ -220,15 +248,15 @@ def handle_vehicle_input(update: Update, context: CallbackContext) -> None:
     # Basic validation
     if len(vehicle_number) < 5:
         update.message.reply_text(
-            "❌ *Invalid vehicle number!*\nPlease enter a valid registration number.\n\n*Example:* 🚙 UP32AB1234",
-            parse_mode='Markdown'
+            "❌ *Invalid vehicle number\\!*\nPlease enter a valid registration number\\.\n\n*Example:* 🚙 UP32AB1234",
+            parse_mode='MarkdownV2'
         )
         return
     
     # Send processing message
     processing_msg = update.message.reply_text(
-        f"🔍 *Searching for {vehicle_number}...*\n\n⏳ Please wait while we fetch the information...",
-        parse_mode='Markdown'
+        f"🔍 *Searching for {escape_markdown(vehicle_number)}\\.\\.\\.*\n\n⏳ Please wait while we fetch the information\\.\\.\\.",
+        parse_mode='MarkdownV2'
     )
     
     try:
@@ -238,6 +266,9 @@ def handle_vehicle_input(update: Update, context: CallbackContext) -> None:
         # Format and send results
         result_message = format_results(vehicle_number, results)
         
+        # Split message if too long
+        message_parts = split_long_message(result_message)
+        
         # Create keyboard for new search
         keyboard = [
             [InlineKeyboardButton("🔄 Search Again", callback_data='search_vehicle')],
@@ -245,22 +276,34 @@ def handle_vehicle_input(update: Update, context: CallbackContext) -> None:
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
         
-        # Edit the processing message with results
-        context.bot.edit_message_text(
+        # Delete processing message
+        context.bot.delete_message(
             chat_id=processing_msg.chat_id,
-            message_id=processing_msg.message_id,
-            text=result_message,
-            parse_mode='Markdown',
-            reply_markup=reply_markup
+            message_id=processing_msg.message_id
         )
         
+        # Send message parts
+        for i, part in enumerate(message_parts):
+            if i == len(message_parts) - 1:
+                # Last part gets the buttons
+                update.message.reply_text(
+                    part,
+                    parse_mode='MarkdownV2',
+                    reply_markup=reply_markup
+                )
+            else:
+                update.message.reply_text(
+                    part,
+                    parse_mode='MarkdownV2'
+                )
+        
     except Exception as e:
-        error_text = f"❌ *Error occurred!*\n\nPlease try again later.\n\n⚡ Error: {str(e)}"
+        error_text = f"❌ *Error occurred\\!*\n\nPlease try again later\\.\n\n⚡ Error: {escape_markdown(str(e))}"
         context.bot.edit_message_text(
             chat_id=processing_msg.chat_id,
             message_id=processing_msg.message_id,
             text=error_text,
-            parse_mode='Markdown'
+            parse_mode='MarkdownV2'
         )
     
     # Reset the waiting state
@@ -280,20 +323,20 @@ def home_handler(update: Update, context: CallbackContext) -> None:
     welcome_text = """
 🚗 *Welcome to Vehicle Info Bot* 🚗
 
-I can help you get detailed information about any vehicle using its registration number.
+I can help you get detailed information about any vehicle using its registration number\\.
 
 *Features:*
 • 📄 RC Vehicle Information
 • 🏠 Address Details  
 • ⚡ Quick & Easy Search
 
-Click the button below to start searching!
+Click the button below to start searching\\!
     """
     
     query.edit_message_text(
         welcome_text,
         reply_markup=reply_markup,
-        parse_mode='Markdown'
+        parse_mode='MarkdownV2'
     )
 
 def main() -> None:
