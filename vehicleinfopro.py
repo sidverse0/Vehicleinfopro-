@@ -6,7 +6,7 @@ import time
 import threading
 from flask import Flask
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import Application, CommandHandler, CallbackQueryHandler, MessageHandler, filters, CallbackContext
+from telegram.ext import Application, CommandHandler, CallbackQueryHandler, MessageHandler, filters, CallbackContext, ConversationHandler
 from telegram.constants import ParseMode
 
 # Bot Configuration
@@ -16,6 +16,9 @@ KEEP_ALIVE_PORT = 8081
 # API endpoints
 API1_URL = "https://revangevichelinfo.vercel.app/api/rc?number="
 API2_URL = "https://caller.hackershub.shop/info.php?type=address&registration="
+
+# Conversation states
+WAITING_FOR_VEHICLE = 1
 
 # Enable logging
 logging.basicConfig(
@@ -192,6 +195,10 @@ Click the button below and enter vehicle registration number.
             reply_markup=reply_markup,
             parse_mode=ParseMode.MARKDOWN
         )
+    
+    # Clear any existing conversation state
+    if 'conversation' in context.user_data:
+        del context.user_data['conversation']
 
 async def help_command(update: Update, context: CallbackContext) -> None:
     """Send help message."""
@@ -242,17 +249,34 @@ Click the button below to begin!
             parse_mode=ParseMode.MARKDOWN
         )
 
-async def show_loading(chat_id, context: CallbackContext):
-    """Show single loading message."""
-    loading_text = f"{Style.LOADING} *Processing your request...*"
+async def search_vehicle_handler(update: Update, context: CallbackContext) -> int:
+    """Handle vehicle search button - ask for vehicle number."""
+    query = update.callback_query
+    await query.answer()
     
-    message = await context.bot.send_message(
-        chat_id=chat_id,
-        text=loading_text,
+    search_text = f"""
+{Style.SEARCH} *VEHICLE SEARCH*
+
+Please enter the vehicle registration number:
+
+*Examples:*
+• `UP32AB1234`
+• `DL1CAB1234` 
+• `HR26DK7890`
+
+{Style.WARNING} *Note:* Enter the number without spaces.
+    """
+    
+    await query.edit_message_text(
+        search_text,
         parse_mode=ParseMode.MARKDOWN
     )
     
-    return message.message_id
+    # Set conversation state
+    context.user_data['conversation'] = 'waiting_for_vehicle'
+    logger.info(f"User {update.effective_user.id} started vehicle search")
+    
+    return WAITING_FOR_VEHICLE
 
 async def button_handler(update: Update, context: CallbackContext) -> None:
     """Handle inline button presses."""
@@ -264,12 +288,7 @@ async def button_handler(update: Update, context: CallbackContext) -> None:
     elif query.data == "main_menu":
         await start(update, context)
     elif query.data == "search_vehicle":
-        await query.edit_message_text(
-            f"{Style.SEARCH} *VEHICLE SEARCH*\n\nPlease enter the vehicle registration number:\n\n*Examples:*\n• `UP32AB1234`\n• `DL1CAB1234`\n• `HR26DK7890`",
-            parse_mode=ParseMode.MARKDOWN
-        )
-        # Set the state to wait for vehicle input
-        context.user_data['waiting_for_vehicle'] = True
+        await search_vehicle_handler(update, context)
 
 def clean_vehicle_number(number: str) -> str:
     """Clean and validate vehicle number."""
@@ -285,23 +304,23 @@ def get_vehicle_info(vehicle_number):
     try:
         # API 1 - RC Information
         logger.info(f"Calling API1 for vehicle: {vehicle_number}")
-        api1_response = requests.get(f"{API1_URL}{vehicle_number}", timeout=20)
+        api1_response = requests.get(f"{API1_URL}{vehicle_number}", timeout=25)
         logger.info(f"API1 Response Status: {api1_response.status_code}")
         
         if api1_response.status_code == 200:
             try:
                 api1_data = api1_response.json()
                 results['api1'] = api1_data
-                logger.info(f"API1 Data received: {bool(api1_data)}")
-            except json.JSONDecodeError:
-                results['api1'] = {"error": "Invalid JSON response from API1"}
-                logger.error("API1 returned invalid JSON")
+                logger.info(f"API1 Data received: {len(api1_data) if api1_data else 0} fields")
+            except json.JSONDecodeError as e:
+                results['api1'] = {"error": f"Invalid JSON from API1: {str(e)}"}
+                logger.error(f"API1 JSON Error: {str(e)}")
         else:
-            results['api1'] = {"error": f"API1 returned status: {api1_response.status_code}"}
-            logger.error(f"API1 Error: {api1_response.status_code}")
+            results['api1'] = {"error": f"API1 HTTP {api1_response.status_code}"}
+            logger.error(f"API1 HTTP Error: {api1_response.status_code}")
             
     except requests.exceptions.Timeout:
-        results['api1'] = {"error": "API1 request timeout"}
+        results['api1'] = {"error": "API1 request timeout (25s)"}
         logger.error("API1 timeout")
     except Exception as e:
         results['api1'] = {"error": f"API1 Error: {str(e)}"}
@@ -310,23 +329,23 @@ def get_vehicle_info(vehicle_number):
     try:
         # API 2 - Detailed Information
         logger.info(f"Calling API2 for vehicle: {vehicle_number}")
-        api2_response = requests.get(f"{API2_URL}{vehicle_number}", timeout=20)
+        api2_response = requests.get(f"{API2_URL}{vehicle_number}", timeout=25)
         logger.info(f"API2 Response Status: {api2_response.status_code}")
         
         if api2_response.status_code == 200:
             try:
                 api2_data = api2_response.json()
                 results['api2'] = api2_data
-                logger.info(f"API2 Data received: {bool(api2_data)}")
-            except json.JSONDecodeError:
-                results['api2'] = {"error": "Invalid JSON response from API2"}
-                logger.error("API2 returned invalid JSON")
+                logger.info(f"API2 Data received: {len(api2_data) if api2_data else 0} fields")
+            except json.JSONDecodeError as e:
+                results['api2'] = {"error": f"Invalid JSON from API2: {str(e)}"}
+                logger.error(f"API2 JSON Error: {str(e)}")
         else:
-            results['api2'] = {"error": f"API2 returned status: {api2_response.status_code}"}
-            logger.error(f"API2 Error: {api2_response.status_code}")
+            results['api2'] = {"error": f"API2 HTTP {api2_response.status_code}"}
+            logger.error(f"API2 HTTP Error: {api2_response.status_code}")
             
     except requests.exceptions.Timeout:
-        results['api2'] = {"error": "API2 request timeout"}
+        results['api2'] = {"error": "API2 request timeout (25s)"}
         logger.error("API2 timeout")
     except Exception as e:
         results['api2'] = {"error": f"API2 Error: {str(e)}"}
@@ -337,13 +356,13 @@ def get_vehicle_info(vehicle_number):
 def format_api1_result(api1_data):
     """Format API 1 result with emojis"""
     if 'error' in api1_data:
-        return f"{Style.ERROR} *RC Information:* {api1_data['error']}\n"
+        return f"{Style.ERROR} *RC Information:* {api1_data['error']}\n\n"
     
     try:
         data = api1_data
-        # Check if data is empty
-        if not data or len(data) == 0:
-            return f"{Style.WARNING} *RC Information:* No data available\n"
+        # Check if data is empty or has no meaningful content
+        if not data or (isinstance(data, dict) and not any(v for v in data.values() if v and str(v).strip() and str(v).lower() not in ['n/a', 'null', 'none'])):
+            return f"{Style.WARNING} *RC Information:* No data available from this source\n\n"
             
         message = f"{Style.DOCUMENT} *RC INFORMATION*\n\n"
         
@@ -369,26 +388,31 @@ def format_api1_result(api1_data):
             (f"🏙️ *City:*", data.get('city'))
         ]
         
+        fields_added = 0
         for label, value in fields:
-            if value and str(value).strip() and str(value).lower() != 'n/a':
+            if value and str(value).strip() and str(value).lower() not in ['n/a', 'null', 'none', '']:
                 message += f"{label} {value}\n"
+                fields_added += 1
         
+        if fields_added == 0:
+            return f"{Style.WARNING} *RC Information:* No valid data fields found\n\n"
+            
         return message
         
     except Exception as e:
         logger.error(f"Error formatting API1 data: {str(e)}")
-        return f"{Style.ERROR} *RC Information:* Data formatting error\n"
+        return f"{Style.ERROR} *RC Information:* Data formatting error\n\n"
 
 def format_api2_result(api2_data):
     """Format API 2 result with emojis"""
     if 'error' in api2_data:
-        return f"{Style.ERROR} *Detailed Information:* {api2_data['error']}\n"
+        return f"{Style.ERROR} *Detailed Information:* {api2_data['error']}\n\n"
     
     try:
         data = api2_data
-        # Check if data is empty
-        if not data or len(data) == 0:
-            return f"{Style.WARNING} *Detailed Information:* No data available\n"
+        # Check if data is empty or has no meaningful content
+        if not data or (isinstance(data, dict) and not any(v for v in data.values() if v and str(v).strip() and str(v).lower() not in ['n/a', 'null', 'none'])):
+            return f"{Style.WARNING} *Detailed Information:* No data available from this source\n\n"
             
         message = f"{Style.INFO} *DETAILED INFORMATION*\n\n"
         
@@ -417,27 +441,23 @@ def format_api2_result(api2_data):
             (f"🔄 *Previous Policy Expired:*", data.get('previous_policy_expired'))
         ]
         
+        fields_added = 0
         for label, value in fields:
-            if value and str(value).strip() and str(value).lower() != 'n/a':
+            if value and str(value).strip() and str(value).lower() not in ['n/a', 'null', 'none', '']:
                 message += f"{label} {value}\n"
+                fields_added += 1
         
+        if fields_added == 0:
+            return f"{Style.WARNING} *Detailed Information:* No valid data fields found\n\n"
+            
         return message
         
     except Exception as e:
         logger.error(f"Error formatting API2 data: {str(e)}")
-        return f"{Style.ERROR} *Detailed Information:* Data formatting error\n"
+        return f"{Style.ERROR} *Detailed Information:* Data formatting error\n\n"
 
-async def handle_vehicle_search(update: Update, context: CallbackContext) -> None:
+async def handle_vehicle_input(update: Update, context: CallbackContext) -> int:
     """Handle vehicle number input from user"""
-    
-    # Check if we're waiting for vehicle input
-    if not context.user_data.get('waiting_for_vehicle', False):
-        # If not in waiting state, ask user to use the button first
-        await update.message.reply_text(
-            f"{Style.INFO} Please use the 'Vehicle Search' button first to start a search.",
-            parse_mode=ParseMode.MARKDOWN
-        )
-        return
     
     vehicle_number = update.message.text
     clean_number = clean_vehicle_number(vehicle_number)
@@ -445,23 +465,24 @@ async def handle_vehicle_search(update: Update, context: CallbackContext) -> Non
     # Basic validation
     if len(clean_number) < 5:
         await update.message.reply_text(
-            f"{Style.ERROR} *Invalid vehicle number!*\n\nPlease enter a valid registration number.\n\n*Examples:*\n• `UP32AB1234`\n• `DL1CAB1234`",
+            f"{Style.ERROR} *Invalid vehicle number!*\n\nPlease enter a valid registration number (minimum 5 characters).\n\n*Examples:*\n• `UP32AB1234`\n• `DL1CAB1234`",
             parse_mode=ParseMode.MARKDOWN
         )
-        return
+        return WAITING_FOR_VEHICLE
     
-    chat_id = update.effective_chat.id
+    logger.info(f"Processing vehicle number: {clean_number} for user {update.effective_user.id}")
     
-    # Show loading message
-    loading_message = await update.message.reply_text(
-        f"{Style.LOADING} *Searching for vehicle {clean_number}...*",
+    # Send processing message
+    processing_msg = await update.message.reply_text(
+        f"{Style.LOADING} *Searching for vehicle `{clean_number}`...*\n\nPlease wait while we fetch information from multiple sources...",
         parse_mode=ParseMode.MARKDOWN
     )
     
     try:
         # Get vehicle information
-        logger.info(f"Processing vehicle: {clean_number}")
+        logger.info(f"Fetching info for vehicle: {clean_number}")
         results = get_vehicle_info(clean_number)
+        logger.info(f"API results received for {clean_number}")
         
         # Format results
         result_text = f"""
@@ -477,18 +498,19 @@ async def handle_vehicle_search(update: Update, context: CallbackContext) -> Non
         api1_message = format_api1_result(results.get('api1', {}))
         result_text += f"\n{api1_message}"
         
-        result_text += "\n━━━━━━━━━━━━━━━━━━━━\n"
+        result_text += "━━━━━━━━━━━━━━━━━━━━\n"
         
         # Add API 2 results
         api2_message = format_api2_result(results.get('api2', {}))
         result_text += f"\n{api2_message}"
         
-        result_text += f"\n{Style.SHIELD} *Data Source:* Verified Vehicle Databases"
+        result_text += f"━━━━━━━━━━━━━━━━━━━━\n"
+        result_text += f"{Style.SHIELD} *Data Source:* Verified Vehicle Databases"
         
-        # Delete loading message
+        # Delete processing message
         await context.bot.delete_message(
-            chat_id=chat_id,
-            message_id=loading_message.message_id
+            chat_id=update.effective_chat.id,
+            message_id=processing_msg.message_id
         )
         
         # Create keyboard
@@ -505,68 +527,59 @@ async def handle_vehicle_search(update: Update, context: CallbackContext) -> Non
             parse_mode=ParseMode.MARKDOWN
         )
         
+        logger.info(f"Successfully sent results for vehicle: {clean_number}")
+        
     except Exception as e:
         logger.error(f"Error processing vehicle {clean_number}: {str(e)}")
         
         # Update loading message with error
         error_text = f"""
-{Style.ERROR} *System Error*
+{Style.ERROR} *Processing Error*
 
 An error occurred while processing your request.
 
 *Vehicle:* `{clean_number}`
-*Error:* Service temporarily unavailable
+*Error:* {str(e)}
 
 {Style.WARNING} Please try again in a few minutes.
         """
         
         await context.bot.edit_message_text(
-            chat_id=chat_id,
-            message_id=loading_message.message_id,
+            chat_id=update.effective_chat.id,
+            message_id=processing_msg.message_id,
             text=error_text,
             parse_mode=ParseMode.MARKDOWN
         )
     
-    # Reset the waiting state
-    context.user_data['waiting_for_vehicle'] = False
-
-async def handle_message(update: Update, context: CallbackContext) -> None:
-    """Handle all text messages."""
+    # Clear conversation state
+    if 'conversation' in context.user_data:
+        del context.user_data['conversation']
     
-    # Check if we're waiting for vehicle input
-    if context.user_data.get('waiting_for_vehicle', False):
-        await handle_vehicle_search(update, context)
-    else:
-        # If not in waiting state, show help
-        help_text = f"""
-{Style.INFO} *Vehicle Info Pro Bot*
+    return ConversationHandler.END
 
-I can help you get detailed information about any vehicle.
+async def cancel(update: Update, context: CallbackContext) -> int:
+    """Cancel the conversation."""
+    await update.message.reply_text(
+        f"{Style.INFO} Operation cancelled. Use /start to begin again.",
+        parse_mode=ParseMode.MARKDOWN
+    )
+    
+    # Clear conversation state
+    if 'conversation' in context.user_data:
+        del context.user_data['conversation']
+    
+    return ConversationHandler.END
 
-To get started:
-1. Click the *'Vehicle Search'* button
-2. Enter the vehicle registration number
-3. Receive detailed information
-
-*Example vehicle numbers:*
-• `UP32AB1234`
-• `DL1CAB1234` 
-• `HR26DK7890`
-
-Click below to start searching!
-        """
-        
-        keyboard = [
+async def handle_unknown_message(update: Update, context: CallbackContext) -> None:
+    """Handle messages when not in conversation."""
+    await update.message.reply_text(
+        f"{Style.INFO} *Vehicle Info Pro Bot*\n\nPlease use the buttons below to start a vehicle search or get help.",
+        parse_mode=ParseMode.MARKDOWN,
+        reply_markup=InlineKeyboardMarkup([
             [InlineKeyboardButton(f"{Style.SEARCH} Vehicle Search", callback_data="search_vehicle")],
             [InlineKeyboardButton(f"{Style.HELP} Help", callback_data="help")]
-        ]
-        reply_markup = InlineKeyboardMarkup(keyboard)
-        
-        await update.message.reply_text(
-            help_text,
-            reply_markup=reply_markup,
-            parse_mode=ParseMode.MARKDOWN
-        )
+        ])
+    )
 
 def main() -> None:
     """Start the bot and keep-alive server."""
@@ -578,11 +591,33 @@ def main() -> None:
     # Create Telegram Bot Application
     application = Application.builder().token(BOT_TOKEN).build()
 
+    # Add conversation handler with the states
+    conv_handler = ConversationHandler(
+        entry_points=[
+            CallbackQueryHandler(search_vehicle_handler, pattern="^search_vehicle$"),
+            CommandHandler("search", search_vehicle_handler)
+        ],
+        states={
+            WAITING_FOR_VEHICLE: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND, handle_vehicle_input)
+            ],
+        },
+        fallbacks=[
+            CommandHandler("cancel", cancel),
+            CommandHandler("start", start),
+            CommandHandler("help", help_command)
+        ],
+        allow_reentry=True
+    )
+
     # Add handlers
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CommandHandler("help", help_command))
-    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
-    application.add_handler(CallbackQueryHandler(button_handler, pattern="^(help|main_menu|search_vehicle)$"))
+    application.add_handler(conv_handler)
+    application.add_handler(CallbackQueryHandler(button_handler, pattern="^(help|main_menu)$"))
+    
+    # Add fallback message handler for when not in conversation
+    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_unknown_message))
     
     # Start the Bot with enhanced logging
     print("🚗 VEHICLE INFO PRO BOT - Starting Services...")
