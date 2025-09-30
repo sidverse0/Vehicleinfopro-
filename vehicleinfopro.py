@@ -164,7 +164,7 @@ async def start(update: Update, context: CallbackContext) -> None:
 • {Style.FACTORY} Manufacturer Details
 
 📋 *Quick Start:*
-Simply send any vehicle registration number to begin analysis.
+Click the button below and enter vehicle registration number.
 
 *Formats Supported:*
 • `UP32AB1234`
@@ -199,9 +199,10 @@ async def help_command(update: Update, context: CallbackContext) -> None:
 {Style.HELP} *VEHICLE INFO PRO BOT - HELP GUIDE* {Style.HELP}
 
 {Style.SEARCH} *How to Use:*
-1. {Style.CAR} Send vehicle registration number
-2. {Style.LOADING} Wait for processing
-3. {Style.SUCCESS} Receive detailed report
+1. Click *"Vehicle Search"* button
+2. Enter vehicle registration number  
+3. Wait for processing
+4. Receive detailed report
 
 {Style.INFO} *Supported Formats:*
 • Standard format: `UP32AB1234`
@@ -219,7 +220,7 @@ async def help_command(update: Update, context: CallbackContext) -> None:
 • Always verify information from official sources
 
 *Ready to search?*
-Send any vehicle number to begin!
+Click the button below to begin!
     """
     
     keyboard = [
@@ -267,6 +268,7 @@ async def button_handler(update: Update, context: CallbackContext) -> None:
             f"{Style.SEARCH} *VEHICLE SEARCH*\n\nPlease enter the vehicle registration number:\n\n*Examples:*\n• `UP32AB1234`\n• `DL1CAB1234`\n• `HR26DK7890`",
             parse_mode=ParseMode.MARKDOWN
         )
+        # Set the state to wait for vehicle input
         context.user_data['waiting_for_vehicle'] = True
 
 def clean_vehicle_number(number: str) -> str:
@@ -277,28 +279,58 @@ def clean_vehicle_number(number: str) -> str:
     return cleaned
 
 def get_vehicle_info(vehicle_number):
-    """Fetch vehicle information from both APIs"""
+    """Fetch vehicle information from both APIs with enhanced error handling"""
     results = {}
     
     try:
-        # API 1
-        api1_response = requests.get(f"{API1_URL}{vehicle_number}", timeout=15)
+        # API 1 - RC Information
+        logger.info(f"Calling API1 for vehicle: {vehicle_number}")
+        api1_response = requests.get(f"{API1_URL}{vehicle_number}", timeout=20)
+        logger.info(f"API1 Response Status: {api1_response.status_code}")
+        
         if api1_response.status_code == 200:
-            results['api1'] = api1_response.json()
+            try:
+                api1_data = api1_response.json()
+                results['api1'] = api1_data
+                logger.info(f"API1 Data received: {bool(api1_data)}")
+            except json.JSONDecodeError:
+                results['api1'] = {"error": "Invalid JSON response from API1"}
+                logger.error("API1 returned invalid JSON")
         else:
-            results['api1'] = {"error": f"API returned status: {api1_response.status_code}"}
+            results['api1'] = {"error": f"API1 returned status: {api1_response.status_code}"}
+            logger.error(f"API1 Error: {api1_response.status_code}")
+            
+    except requests.exceptions.Timeout:
+        results['api1'] = {"error": "API1 request timeout"}
+        logger.error("API1 timeout")
     except Exception as e:
-        results['api1'] = {"error": f"API Error: {str(e)}"}
+        results['api1'] = {"error": f"API1 Error: {str(e)}"}
+        logger.error(f"API1 Exception: {str(e)}")
     
     try:
-        # API 2
-        api2_response = requests.get(f"{API2_URL}{vehicle_number}", timeout=15)
+        # API 2 - Detailed Information
+        logger.info(f"Calling API2 for vehicle: {vehicle_number}")
+        api2_response = requests.get(f"{API2_URL}{vehicle_number}", timeout=20)
+        logger.info(f"API2 Response Status: {api2_response.status_code}")
+        
         if api2_response.status_code == 200:
-            results['api2'] = api2_response.json()
+            try:
+                api2_data = api2_response.json()
+                results['api2'] = api2_data
+                logger.info(f"API2 Data received: {bool(api2_data)}")
+            except json.JSONDecodeError:
+                results['api2'] = {"error": "Invalid JSON response from API2"}
+                logger.error("API2 returned invalid JSON")
         else:
-            results['api2'] = {"error": f"API returned status: {api2_response.status_code}"}
+            results['api2'] = {"error": f"API2 returned status: {api2_response.status_code}"}
+            logger.error(f"API2 Error: {api2_response.status_code}")
+            
+    except requests.exceptions.Timeout:
+        results['api2'] = {"error": "API2 request timeout"}
+        logger.error("API2 timeout")
     except Exception as e:
-        results['api2'] = {"error": f"API Error: {str(e)}"}
+        results['api2'] = {"error": f"API2 Error: {str(e)}"}
+        logger.error(f"API2 Exception: {str(e)}")
     
     return results
 
@@ -309,29 +341,43 @@ def format_api1_result(api1_data):
     
     try:
         data = api1_data
+        # Check if data is empty
+        if not data or len(data) == 0:
+            return f"{Style.WARNING} *RC Information:* No data available\n"
+            
         message = f"{Style.DOCUMENT} *RC INFORMATION*\n\n"
-        message += f"{Style.USER} *Owner:* {data.get('owner_name', 'Not Available')}\n"
-        message += f"{Style.FATHER} *Father:* {data.get('father_name', 'Not Available')}\n"
-        message += f"🔢 *Owner Serial:* {data.get('owner_serial_no', 'Not Available')}\n"
-        message += f"{Style.FACTORY} *Manufacturer:* {data.get('model_name', 'Not Available')}\n"
-        message += f"{Style.CAR} *Model:* {data.get('maker_model', 'Not Available')}\n"
-        message += f"📋 *Vehicle Class:* {data.get('vehicle_class', 'Not Available')}\n"
-        message += f"{Style.FUEL} *Fuel Type:* {data.get('fuel_type', 'Not Available')}\n"
-        message += f"🌱 *Fuel Norms:* {data.get('fuel_norms', 'Not Available')}\n"
-        message += f"{Style.CALENDAR} *Registration Date:* {data.get('registration_date', 'Not Available')}\n"
-        message += f"🏢 *Insurance Company:* {data.get('insurance_company', 'Not Available')}\n"
-        message += f"{Style.SHIELD} *Insurance Upto:* {data.get('insurance_upto', 'Not Available')}\n"
-        message += f"{Style.SUCCESS} *Fitness Upto:* {data.get('fitness_upto', 'Not Available')}\n"
-        message += f"{Style.MONEY} *Tax Upto:* {data.get('tax_upto', 'Not Available')}\n"
-        message += f"📊 *PUC Upto:* {data.get('puc_upto', 'Not Available')}\n"
-        message += f"🏦 *Financier:* {data.get('financier_name', 'Not Available')}\n"
-        message += f"🏢 *RTO:* {data.get('rto', 'Not Available')}\n"
-        message += f"{Style.LOCATION} *Address:* {data.get('address', 'Not Available')}\n"
-        message += f"🏙️ *City:* {data.get('city', 'Not Available')}\n"
+        
+        # Safely get values with defaults
+        fields = [
+            (f"{Style.USER} *Owner:*", data.get('owner_name')),
+            (f"{Style.FATHER} *Father:*", data.get('father_name')),
+            (f"🔢 *Owner Serial:*", data.get('owner_serial_no')),
+            (f"{Style.FACTORY} *Manufacturer:*", data.get('model_name')),
+            (f"{Style.CAR} *Model:*", data.get('maker_model')),
+            (f"📋 *Vehicle Class:*", data.get('vehicle_class')),
+            (f"{Style.FUEL} *Fuel Type:*", data.get('fuel_type')),
+            (f"🌱 *Fuel Norms:*", data.get('fuel_norms')),
+            (f"{Style.CALENDAR} *Registration Date:*", data.get('registration_date')),
+            (f"🏢 *Insurance Company:*", data.get('insurance_company')),
+            (f"{Style.SHIELD} *Insurance Upto:*", data.get('insurance_upto')),
+            (f"{Style.SUCCESS} *Fitness Upto:*", data.get('fitness_upto')),
+            (f"{Style.MONEY} *Tax Upto:*", data.get('tax_upto')),
+            (f"📊 *PUC Upto:*", data.get('puc_upto')),
+            (f"🏦 *Financier:*", data.get('financier_name')),
+            (f"🏢 *RTO:*", data.get('rto')),
+            (f"{Style.LOCATION} *Address:*", data.get('address')),
+            (f"🏙️ *City:*", data.get('city'))
+        ]
+        
+        for label, value in fields:
+            if value and str(value).strip() and str(value).lower() != 'n/a':
+                message += f"{label} {value}\n"
         
         return message
+        
     except Exception as e:
-        return f"{Style.ERROR} *RC Information:* Data parsing error\n"
+        logger.error(f"Error formatting API1 data: {str(e)}")
+        return f"{Style.ERROR} *RC Information:* Data formatting error\n"
 
 def format_api2_result(api2_data):
     """Format API 2 result with emojis"""
@@ -340,37 +386,57 @@ def format_api2_result(api2_data):
     
     try:
         data = api2_data
+        # Check if data is empty
+        if not data or len(data) == 0:
+            return f"{Style.WARNING} *Detailed Information:* No data available\n"
+            
         message = f"{Style.INFO} *DETAILED INFORMATION*\n\n"
-        message += f"🔢 *Asset Number:* {data.get('asset_number', 'Not Available')}\n"
-        message += f"{Style.CAR} *Asset Type:* {data.get('asset_type', 'Not Available')}\n"
-        message += f"{Style.CALENDAR} *Registration Year:* {data.get('registration_year', 'Not Available')}\n"
-        message += f"🗓️ *Registration Month:* {data.get('registration_month', 'Not Available')}\n"
-        message += f"{Style.FACTORY} *Make Model:* {data.get('make_model', 'Not Available')}\n"
-        message += f"📋 *Vehicle Type:* {data.get('vehicle_type', 'Not Available')}\n"
-        message += f"{Style.ENGINE} *Make Name:* {data.get('make_name', 'Not Available')}\n"
-        message += f"{Style.FUEL} *Fuel Type:* {data.get('fuel_type', 'Not Available')}\n"
-        message += f"🔩 *Engine Number:* {data.get('engine_number', 'Not Available')}\n"
-        message += f"{Style.USER} *Owner Name:* {data.get('owner_name', 'Not Available')}\n"
-        message += f"🆔 *Chassis Number:* {data.get('chassis_number', 'Not Available')}\n"
-        message += f"🏢 *Previous Insurer:* {data.get('previous_insurer', 'Not Available')}\n"
-        message += f"{Style.SHIELD} *Previous Policy Expiry:* {data.get('previous_policy_expiry_date', 'Not Available')}\n"
-        message += f"{Style.LOCATION} *Permanent Address:* {data.get('permanent_address', 'Not Available')}\n"
-        message += f"📍 *Present Address:* {data.get('present_address', 'Not Available')}\n"
-        message += f"{Style.CALENDAR} *Registration Date:* {data.get('registration_date', 'Not Available')}\n"
-        message += f"🏢 *Registration Address:* {data.get('registration_address', 'Not Available')}\n"
-        message += f"{Style.CAR} *Model Name:* {data.get('model_name', 'Not Available')}\n"
-        message += f"{Style.FACTORY} *Make Name 2:* {data.get('make_name2', 'Not Available')}\n"
-        message += f"📋 *Model Name 2:* {data.get('model_name2', 'Not Available')}\n"
-        message += f"🔄 *Previous Policy Expired:* {data.get('previous_policy_expired', 'Not Available')}\n"
+        
+        # Safely get values with defaults
+        fields = [
+            (f"🔢 *Asset Number:*", data.get('asset_number')),
+            (f"{Style.CAR} *Asset Type:*", data.get('asset_type')),
+            (f"{Style.CALENDAR} *Registration Year:*", data.get('registration_year')),
+            (f"🗓️ *Registration Month:*", data.get('registration_month')),
+            (f"{Style.FACTORY} *Make Model:*", data.get('make_model')),
+            (f"📋 *Vehicle Type:*", data.get('vehicle_type')),
+            (f"{Style.ENGINE} *Make Name:*", data.get('make_name')),
+            (f"{Style.FUEL} *Fuel Type:*", data.get('fuel_type')),
+            (f"🔩 *Engine Number:*", data.get('engine_number')),
+            (f"{Style.USER} *Owner Name:*", data.get('owner_name')),
+            (f"🆔 *Chassis Number:*", data.get('chassis_number')),
+            (f"🏢 *Previous Insurer:*", data.get('previous_insurer')),
+            (f"{Style.SHIELD} *Previous Policy Expiry:*", data.get('previous_policy_expiry_date')),
+            (f"{Style.LOCATION} *Permanent Address:*", data.get('permanent_address')),
+            (f"📍 *Present Address:*", data.get('present_address')),
+            (f"{Style.CALENDAR} *Registration Date:*", data.get('registration_date')),
+            (f"🏢 *Registration Address:*", data.get('registration_address')),
+            (f"{Style.CAR} *Model Name:*", data.get('model_name')),
+            (f"{Style.FACTORY} *Make Name 2:*", data.get('make_name2')),
+            (f"📋 *Model Name 2:*", data.get('model_name2')),
+            (f"🔄 *Previous Policy Expired:*", data.get('previous_policy_expired'))
+        ]
+        
+        for label, value in fields:
+            if value and str(value).strip() and str(value).lower() != 'n/a':
+                message += f"{label} {value}\n"
         
         return message
+        
     except Exception as e:
-        return f"{Style.ERROR} *Detailed Information:* Data parsing error\n"
+        logger.error(f"Error formatting API2 data: {str(e)}")
+        return f"{Style.ERROR} *Detailed Information:* Data formatting error\n"
 
-async def handle_vehicle_input(update: Update, context: CallbackContext) -> None:
+async def handle_vehicle_search(update: Update, context: CallbackContext) -> None:
     """Handle vehicle number input from user"""
     
-    if not context.user_data.get('waiting_for_vehicle'):
+    # Check if we're waiting for vehicle input
+    if not context.user_data.get('waiting_for_vehicle', False):
+        # If not in waiting state, ask user to use the button first
+        await update.message.reply_text(
+            f"{Style.INFO} Please use the 'Vehicle Search' button first to start a search.",
+            parse_mode=ParseMode.MARKDOWN
+        )
         return
     
     vehicle_number = update.message.text
@@ -387,10 +453,14 @@ async def handle_vehicle_input(update: Update, context: CallbackContext) -> None
     chat_id = update.effective_chat.id
     
     # Show loading message
-    loading_message_id = await show_loading(chat_id, context)
+    loading_message = await update.message.reply_text(
+        f"{Style.LOADING} *Searching for vehicle {clean_number}...*",
+        parse_mode=ParseMode.MARKDOWN
+    )
     
     try:
         # Get vehicle information
+        logger.info(f"Processing vehicle: {clean_number}")
         results = get_vehicle_info(clean_number)
         
         # Format results
@@ -416,7 +486,10 @@ async def handle_vehicle_input(update: Update, context: CallbackContext) -> None
         result_text += f"\n{Style.SHIELD} *Data Source:* Verified Vehicle Databases"
         
         # Delete loading message
-        await context.bot.delete_message(chat_id=chat_id, message_id=loading_message_id)
+        await context.bot.delete_message(
+            chat_id=chat_id,
+            message_id=loading_message.message_id
+        )
         
         # Create keyboard
         keyboard = [
@@ -433,7 +506,9 @@ async def handle_vehicle_input(update: Update, context: CallbackContext) -> None
         )
         
     except Exception as e:
-        logger.error(f"Error processing vehicle: {e}")
+        logger.error(f"Error processing vehicle {clean_number}: {str(e)}")
+        
+        # Update loading message with error
         error_text = f"""
 {Style.ERROR} *System Error*
 
@@ -447,7 +522,7 @@ An error occurred while processing your request.
         
         await context.bot.edit_message_text(
             chat_id=chat_id,
-            message_id=loading_message_id,
+            message_id=loading_message.message_id,
             text=error_text,
             parse_mode=ParseMode.MARKDOWN
         )
@@ -456,29 +531,40 @@ An error occurred while processing your request.
     context.user_data['waiting_for_vehicle'] = False
 
 async def handle_message(update: Update, context: CallbackContext) -> None:
-    """Handle all other messages."""
-    text = update.message.text
+    """Handle all text messages."""
     
-    # Check if message looks like a vehicle number
-    cleaned_text = text.upper().strip()
-    if any(c.isalnum() for c in cleaned_text) and len(cleaned_text) >= 5:
-        context.user_data['waiting_for_vehicle'] = True
-        await handle_vehicle_input(update, context)
+    # Check if we're waiting for vehicle input
+    if context.user_data.get('waiting_for_vehicle', False):
+        await handle_vehicle_search(update, context)
     else:
+        # If not in waiting state, show help
         help_text = f"""
-{Style.ERROR} *Invalid Input*
+{Style.INFO} *Vehicle Info Pro Bot*
 
-Please send a valid vehicle registration number.
+I can help you get detailed information about any vehicle.
 
-{Style.SEARCH} *Supported Formats:*
+To get started:
+1. Click the *'Vehicle Search'* button
+2. Enter the vehicle registration number
+3. Receive detailed information
+
+*Example vehicle numbers:*
 • `UP32AB1234`
-• `DL1CAB1234`
+• `DL1CAB1234` 
 • `HR26DK7890`
 
-{Style.HELP} Use /help for complete instructions.
+Click below to start searching!
         """
+        
+        keyboard = [
+            [InlineKeyboardButton(f"{Style.SEARCH} Vehicle Search", callback_data="search_vehicle")],
+            [InlineKeyboardButton(f"{Style.HELP} Help", callback_data="help")]
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        
         await update.message.reply_text(
             help_text,
+            reply_markup=reply_markup,
             parse_mode=ParseMode.MARKDOWN
         )
 
