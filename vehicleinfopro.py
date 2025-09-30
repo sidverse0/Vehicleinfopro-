@@ -48,6 +48,15 @@ class Style:
     ROCKET = "🚀"
     SERVER = "🌐"
     INFO = "ℹ️"
+    PHONE = "📞"
+    ID = "🆔"
+    CERTIFICATE = "📜"
+    BUILDING = "🏢"
+    GEAR = "⚙️"
+    CAR_DETAIL = "🚙"
+    GAS = "💨"
+    COMMERCIAL = "💼"
+    INSURANCE = "🏥"
 
 # Create Flask app for keep-alive
 app = Flask(__name__)
@@ -208,7 +217,7 @@ def get_vehicle_info(vehicle_number):
     return results
 
 def format_vehicle_results(vehicle_number, results):
-    """Format the vehicle information results"""
+    """Format the vehicle information results with ALL fields"""
     
     result_text = f"""
 {Style.CAR} *VEHICLE INFORMATION REPORT*
@@ -219,62 +228,96 @@ def format_vehicle_results(vehicle_number, results):
 ────────────────────
     """
     
-    # API 1 Results
+    # API 1 Results - Complete Fields
     api1_data = results.get('api1', {})
     if 'error' in api1_data:
         result_text += f"\n{Style.ERROR} *RC Information:* {api1_data['error']}\n"
     else:
         result_text += f"\n{Style.DOCUMENT} *RC INFORMATION*\n\n"
         data = api1_data
-        fields = [
-            (f"{Style.USER} Owner", data.get('owner_name')),
-            (f"{Style.FATHER} Father", data.get('father_name')),
-            (f"🔢 Serial", data.get('owner_serial_no')),
-            (f"{Style.FACTORY} Manufacturer", data.get('model_name')),
-            (f"{Style.CAR} Model", data.get('maker_model')),
-            (f"📋 Class", data.get('vehicle_class')),
-            (f"{Style.FUEL} Fuel", data.get('fuel_type')),
-            (f"{Style.CALENDAR} Reg Date", data.get('registration_date')),
-            (f"🏢 Insurance Co", data.get('insurance_company')),
+        
+        # All API1 fields with proper formatting
+        api1_fields = [
+            (f"{Style.ID} RC Number", data.get('rc_number')),
+            (f"{Style.USER} Owner Name", data.get('owner_name')),
+            (f"{Style.FATHER} Father Name", data.get('father_name')),
+            (f"🔢 Owner Serial No", data.get('owner_serial_no')),
+            (f"{Style.FACTORY} Model Name", data.get('model_name')),
+            (f"{Style.CAR} Maker Model", data.get('maker_model')),
+            (f"📋 Vehicle Class", data.get('vehicle_class')),
+            (f"{Style.FUEL} Fuel Type", data.get('fuel_type')),
+            (f"{Style.GAS} Fuel Norms", data.get('fuel_norms')),
+            (f"{Style.CALENDAR} Registration Date", data.get('registration_date')),
+            (f"{Style.INSURANCE} Insurance Company", data.get('insurance_company')),
+            (f"📄 Insurance No", data.get('insurance_no')),
+            (f"{Style.SHIELD} Insurance Expiry", data.get('insurance_expiry')),
             (f"{Style.SHIELD} Insurance Upto", data.get('insurance_upto')),
-            (f"{Style.SUCCESS} Fitness Upto", data.get('fitness_upto')),
+            (f"{Style.CERTIFICATE} Fitness Upto", data.get('fitness_upto')),
             (f"{Style.MONEY} Tax Upto", data.get('tax_upto')),
+            (f"🛂 PUC No", data.get('puc_no')),
+            (f"🛂 PUC Upto", data.get('puc_upto')),
+            (f"💰 Financier Name", data.get('financier_name')),
+            (f"{Style.BUILDING} RTO", data.get('rto')),
             (f"{Style.LOCATION} Address", data.get('address')),
-            (f"🏙️ City", data.get('city'))
+            (f"🏙️ City", data.get('city')),
+            (f"{Style.PHONE} Phone", data.get('phone'))
         ]
         
-        for label, value in fields:
+        for label, value in api1_fields:
             if value and str(value).strip() and str(value).lower() not in ['n/a', 'null', 'none', '']:
-                result_text += f"• {label}: {value}\n"
+                result_text += f"• {label}: `{value}`\n"
     
     result_text += "\n────────────────────\n"
     
-    # API 2 Results
+    # API 2 Results - Complete Fields
     api2_data = results.get('api2', {})
     if 'error' in api2_data:
         result_text += f"\n{Style.ERROR} *Detailed Info:* {api2_data['error']}\n"
     else:
         result_text += f"\n{Style.INFO} *DETAILED INFORMATION*\n\n"
         data = api2_data
-        fields = [
-            (f"🔢 Asset No", data.get('asset_number')),
+        
+        # All API2 fields with proper formatting
+        api2_fields = [
+            (f"🔢 Asset Number", data.get('asset_number')),
             (f"{Style.CAR} Asset Type", data.get('asset_type')),
-            (f"{Style.CALENDAR} Reg Year", data.get('registration_year')),
-            (f"{Style.FACTORY} Make Model", data.get('make_model')),
-            (f"{Style.ENGINE} Make Name", data.get('make_name')),
+            (f"{Style.CALENDAR} Registration Year", data.get('registration_year')),
+            (f"{Style.CALENDAR} Registration Month", data.get('registration_month')),
+            (f"{Style.CAR_DETAIL} Make Model", data.get('make_model')),
+            (f"📋 Vehicle Type", data.get('vehicle_type')),
+            (f"{Style.FACTORY} Make Name", data.get('make_name')),
             (f"{Style.FUEL} Fuel Type", data.get('fuel_type')),
-            (f"🔩 Engine No", data.get('engine_number')),
+            (f"{Style.ENGINE} Engine Number", data.get('engine_number')),
             (f"{Style.USER} Owner Name", data.get('owner_name')),
-            (f"🆔 Chassis No", data.get('chassis_number')),
-            (f"{Style.LOCATION} Address", data.get('permanent_address')),
-            (f"📍 Present Address", data.get('present_address'))
+            (f"🆔 Chassis Number", data.get('chassis_number')),
+            (f"🏢 Previous Insurer", data.get('previous_insurer')),
+            (f"{Style.SHIELD} Previous Policy Expiry", data.get('previous_policy_expiry_date')),
+            (f"{Style.COMMERCIAL} Is Commercial", data.get('is_commercial')),
+            (f"📋 Vehicle Type V2", data.get('vehicle_type_v2')),
+            (f"{Style.GEAR} Vehicle Type Processed", data.get('vehicle_type_processed')),
+            (f"{Style.LOCATION} Permanent Address", data.get('permanent_address')),
+            (f"📍 Present Address", data.get('present_address')),
+            (f"{Style.CALENDAR} Registration Date", data.get('registration_date')),
+            (f"{Style.BUILDING} Registration Address", data.get('registration_address')),
+            (f"{Style.CAR} Model Name", data.get('model_name')),
+            (f"{Style.FACTORY} Make Name 2", data.get('make_name2')),
+            (f"{Style.CAR} Model Name 2", data.get('model_name2')),
+            (f"🆔 Variant ID", data.get('variant_id')),
+            (f"{Style.SHIELD} Previous Policy Expired", data.get('previous_policy_expired'))
         ]
         
-        for label, value in fields:
-            if value and str(value).strip() and str(value).lower() not in ['n/a', 'null', 'none', '']:
-                result_text += f"• {label}: {value}\n"
+        for label, value in api2_fields:
+            if value is not None and str(value).strip() and str(value).lower() not in ['n/a', 'null', 'none', '']:
+                # Handle boolean values
+                if isinstance(value, bool):
+                    value = "Yes" if value else "No"
+                # Handle list values
+                elif isinstance(value, list):
+                    value = ', '.join(str(v) for v in value)
+                result_text += f"• {label}: `{value}`\n"
     
     result_text += f"\n{Style.SHIELD} *Data Source:* Verified Vehicle Databases"
+    result_text += f"\n{Style.INFO} *Note:* Some fields may be empty if not available in database"
     
     return result_text
 
@@ -341,12 +384,45 @@ async def process_vehicle_number(update: Update, context: CallbackContext, vehic
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
         
-        # Send result
-        await update.message.reply_text(
-            result_text,
-            reply_markup=reply_markup,
-            parse_mode=ParseMode.MARKDOWN
-        )
+        # Send result - Telegram has 4096 character limit, so we need to check
+        if len(result_text) > 4096:
+            # Split the message if too long
+            parts = []
+            while result_text:
+                if len(result_text) > 4096:
+                    part = result_text[:4096]
+                    # Find the last newline to avoid cutting in the middle of a line
+                    last_newline = part.rfind('\n')
+                    if last_newline != -1:
+                        part = result_text[:last_newline]
+                        result_text = result_text[last_newline+1:]
+                    else:
+                        result_text = result_text[4096:]
+                    parts.append(part)
+                else:
+                    parts.append(result_text)
+                    break
+            
+            # Send first part with keyboard
+            await update.message.reply_text(
+                parts[0],
+                reply_markup=reply_markup,
+                parse_mode=ParseMode.MARKDOWN
+            )
+            
+            # Send remaining parts without keyboard
+            for part in parts[1:]:
+                await update.message.reply_text(
+                    part,
+                    parse_mode=ParseMode.MARKDOWN
+                )
+        else:
+            # Send normally if within limit
+            await update.message.reply_text(
+                result_text,
+                reply_markup=reply_markup,
+                parse_mode=ParseMode.MARKDOWN
+            )
         
         logger.info(f"Successfully sent results for vehicle: {vehicle_number}")
         
